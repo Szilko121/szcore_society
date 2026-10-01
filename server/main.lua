@@ -1,3 +1,37 @@
+local function registerSzCoreCallback(name, fn)
+    CreateThread(function()
+        local deadline = GetGameTimer() + 15000
+
+        while GetGameTimer() < deadline do
+            if GetResourceState('szcore') == 'started' then
+                local ok, success, err = pcall(function()
+                    return registerSzCoreCallback(name, fn)
+                end)
+
+                if ok and success ~= false then
+                    return
+                end
+
+                if ok and success == false then
+                    print(('[%s] SzCore callback registration rejected: %s (%s)'):format(
+                        GetCurrentResourceName(),
+                        tostring(name),
+                        tostring(err)
+                    ))
+                    return
+                end
+            end
+
+            Wait(100)
+        end
+
+        print(('[%s] SzCore callback registration timed out: %s'):format(
+            GetCurrentResourceName(),
+            tostring(name)
+        ))
+    end)
+end
+
 local S = {}
 local actionRate = {}
 local function account(name) return 'society:' .. name end
@@ -151,8 +185,8 @@ CreateThread(function()
     for name,job in pairs(exports.szcore:GetJobs()) do if name~='unemployed' then S.ensure(name,job.label,'job') end end
     for name,gang in pairs(exports.szcore:GetGangs()) do if name~='none' then S.ensure(name,gang.label,'gang') end end
 end)
-exports.szcore:CreateCallback('szcore_society:dashboard',dashboard)
-exports.szcore:CreateCallback('szcore_society:action',action)
+registerSzCoreCallback('szcore_society:dashboard',dashboard)
+registerSzCoreCallback('szcore_society:action',action)
 exports('EnsureSociety',S.ensure);exports('GetSociety',S.get);exports('Deposit',S.deposit);exports('Withdraw',S.withdraw)
 exports('Hire',S.hire);exports('Fire',S.fire);exports('SetGrade',S.setGrade);exports('GetTransactions',S.transactions)
 AddEventHandler('playerDropped',function()actionRate[source]=nil end)
